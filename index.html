@@ -80,7 +80,7 @@ function noteForm(ad){
   document.getElementById('sn2').onclick=async()=>{const v=i=>document.getElementById(i).value.trim(),m=document.getElementById('nm2');
     if(!v('nt')||!v('nb')){m.textContent='Add a title and some notes first.';return;}
     if(!ENDPOINT){m.textContent='Sharing is not set up yet.';return;}
-    try{await fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'note',email:session&&session.email,token:session&&session.token,author:v('na'),title:v('nt'),text:v('nb'),key:ad?akey:''})});
+    try{await fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'note',author:v('na'),title:v('nt'),text:v('nb'),key:ad?akey:''})});
       m.textContent=ad?'Published.':'Thank you. Your note appears after the owner approves it.';document.getElementById('nt').value='';document.getElementById('nb').value='';}
     catch(e){m.textContent='Could not send. Check your connection and try again.';}};
 }
@@ -93,26 +93,6 @@ function adminView(){
   app.onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;
     await fetch(ENDPOINT+'?action=set&id='+encodeURIComponent(b.dataset.id)+'&status='+b.dataset.a+'&key='+encodeURIComponent(akey),{mode:'no-cors'}).catch(()=>{});load();};
   if(akey)load();
-}
-const SK='vid-quiz-session';
-let session=null;try{session=JSON.parse(localStorage.getItem(SK)||'null')}catch(e){}
-const api=async q=>(await fetch(ENDPOINT+'?'+q)).json();
-function login(step,email){
-  app.innerHTML=`<h1>Driving Test Quiz</h1><p class="sub">Sign in with your email. We send a 6-digit code to check that it is real.</p>
-  ${step==='code'?`<p>Code sent to <b>${esc(email)}</b>.</p><input class="inp" id="cd" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code"><button class="btn primary" id="vf">Verify</button><button class="btn" id="rs">Send a new code</button><button class="link" id="ch">Use a different email</button>`:`<input class="inp" id="em" type="email" inputmode="email" placeholder="Your email" autocomplete="email"><button class="btn primary" id="sc">Send code</button>`}
-  <p class="sub" id="lm">Your email is used to verify you and track your results.</p>`;
-  const msg=t=>{document.getElementById('lm').textContent=t};
-  const send=async e=>{msg('Sending\u2026');try{const d=await api('action=sendcode&email='+encodeURIComponent(e));if(d.ok)login('code',e);else msg(d.error||'Could not send the code.');}catch(x){msg('Could not connect. Check your connection.');}};
-  window.scrollTo(0,0);app.onclick=null;
-  if(step==='code'){
-    document.getElementById('vf').onclick=async()=>{const c=document.getElementById('cd').value.trim();if(!c){msg('Enter the code.');return;}msg('Checking\u2026');
-      try{const d=await api('action=verify&email='+encodeURIComponent(email)+'&code='+encodeURIComponent(c));
-        if(d.ok){session={email:email,token:d.token};try{localStorage.setItem(SK,JSON.stringify(session))}catch(e){}menu();}else msg(d.error||'Wrong code.');}
-      catch(x){msg('Could not connect. Check your connection.');}};
-    document.getElementById('rs').onclick=()=>send(email);
-    document.getElementById('ch').onclick=()=>login();
-  }else document.getElementById('sc').onclick=()=>{const e=document.getElementById('em').value.trim().toLowerCase();
-    if(!/^\S+@\S+\.\S{2,}$/.test(e)){msg('Enter a valid email.');return;}send(e);};
 }
 const typ=q=>q.m?(/\bcar\b/i.test(q.q)?'cars':'signs'):'rules';
 const pick=(a,n)=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a.slice(0,n);};
@@ -166,14 +146,14 @@ function menu(){
   <button class="btn" data-topic="cars">Which car<small>${Q.filter(q=>typ(q)==='cars').length} questions</small></button>
   <button class="btn" data-topic="rules">Rules<small>${Q.filter(q=>typ(q)==='rules').length} questions</small></button>
   <button class="btn" data-flash="1">Sign flashcards<small>learn every sign</small></button></div>
-  <h2>More</h2>${standalone?'':'<button class="btn" data-install="1">Install on home screen</button>'}${session?`<button class="btn" data-out="1">Sign out<span class="sm">${esc(session.email)}</span></button>`:''}
+  <h2>More</h2>${standalone?'':'<button class="btn" data-install="1">Install on home screen</button>'}
   <button class="btn" data-all="1">All questions (${Q.length})</button>
   ${wrong.length?`<button class="btn" data-miss="1">Practise my mistakes (${wrong.length})</button>`:''}
   <button class="btn" data-hist="1">My results</button>
   <h2>Pick a test</h2><div class="grid">${tests.map(tcard).join('')}</div>`;
   app.onclick=e=>{const b=e.target.closest('button');if(!b)return;
     name=document.getElementById('nm').value.trim();
-    if(b.dataset.hist)return history();if(b.dataset.notes)return notes();if(b.dataset.flash)return flash();if(b.dataset.install)return install();if(b.dataset.out){try{localStorage.removeItem(SK)}catch(e){}session=null;return login();}
+    if(b.dataset.hist)return history();if(b.dataset.notes)return notes();if(b.dataset.flash)return flash();if(b.dataset.install)return install();
     if(!name){document.getElementById('msg').textContent='Enter your name first so your results can be saved.';return;}
     try{localStorage.setItem(NK,name)}catch(e){}
     shuffle=document.getElementById('shuf').checked;timed=document.getElementById('tmr').checked;
@@ -246,9 +226,9 @@ function finish(){
   const r=document.getElementById('rm');if(r)r.onclick=()=>start(missed.slice(),'Retry wrong');
   if(ENDPOINT){const el=document.getElementById('sent');el.textContent='Sending your result\u2026';
     fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({email:session&&session.email,token:session&&session.token,name:name,set:label+(expired?' (time up)':''),score:score,total:queue.length,pct:pct,date:new Date().toISOString()})})
+      body:JSON.stringify({name:name,set:label+(expired?' (time up)':''),score:score,total:queue.length,pct:pct,date:new Date().toISOString()})})
       .then(()=>{el.textContent='Result sent.'}).catch(()=>{el.textContent='Could not send your result. It is saved on this device.'});}
 }
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
-(ENDPOINT&&!session)?login():menu();
+menu();
 </script></body></html>
